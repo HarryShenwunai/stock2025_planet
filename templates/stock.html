@@ -1,0 +1,234 @@
+<html>
+<head>
+    <title>{{ page_title if page_title else 'Stock Data' }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8f8f8; }
+        .page-header { background: #fff; border: 1px solid #ccc; border-radius: 8px; margin: 16px 0; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .page-title { font-size: 1.5em; font-weight: bold; color: #333; margin-bottom: 8px; }
+        .source-url { font-size: 0.9em; color: #666; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-family: monospace; }
+        .stock-summary { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .stock-symbol { font-size: 1.8em; font-weight: bold; color: #333; margin-bottom: 15px; }
+        .chart-container { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .chart-title { font-size: 1.3em; font-weight: bold; color: #333; margin-bottom: 15px; }
+        .stats-container { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .stat-item { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }
+        .stat-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
+        .stat-value { font-size: 1.2em; font-weight: bold; color: #333; }
+        .stock-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .stock-table th { background: #f5f5f5; padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: bold; }
+        .stock-table td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+        .stock-table tr:hover { background-color: #f9f9f9; }
+        .price-positive { color: #28a745; }
+        .price-negative { color: #dc3545; }
+        .navigation { background: #fff; border: 1px solid #ccc; border-radius: 8px; margin: 16px 0; padding: 16px; }
+        .nav-link { color: #0077cc; text-decoration: none; margin-right: 20px; font-weight: bold; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="page-header">
+        <div class="page-title">{{ page_title if page_title else 'Stock Data' }}</div>
+        <div class="source-url">Data Source: {{ source_url if source_url else 'Unknown URL' }}</div>
+    </div>
+    
+    <div class="navigation">
+        <a href="/" class="nav-link">TechSum Events</a>
+        <a href="/aapl" class="nav-link">AAPL Stock Metrics</a>
+    </div>
+
+    {% if stock_data %}
+        <div class="chart-container">
+            <div class="chart-title">{{ stock_data.symbol }} Price Chart</div>
+            <canvas id="priceChart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="stats-container">
+            <div class="chart-title">Statistical Analysis</div>
+            <div class="stats-grid" id="statsGrid">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="stock-summary">
+            <div class="stock-symbol">{{ stock_data.symbol }} Stock Information</div>
+            {% if stock_data.stock_info and stock_data.stock_info|length > 0 %}
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Open</th>
+                            <th>High</th>
+                            <th>Low</th>
+                            <th>Close</th>
+                            <th>Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in stock_data.stock_info %}
+                        <tr>
+                            <td>{{ day.date }}</td>
+                            <td>${{ "%.2f"|format(day.open) }}</td>
+                            <td>${{ "%.2f"|format(day.high) }}</td>
+                            <td>${{ "%.2f"|format(day.low) }}</td>
+                            <td>${{ "%.2f"|format(day.close) }}</td>
+                            <td>{{ "{:,}".format(day.volume) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No stock information available.</p>
+            {% endif %}
+        </div>
+    {% else %}
+        <p>No stock data found or data format not recognized.</p>
+    {% endif %}
+
+    <script>
+    {% if stock_data and stock_data.stock_info %}
+    // Prepare data for chart
+    const stockData = {{ stock_data.stock_info | tojson }};
+    const dates = stockData.map(item => item.date);
+    const closePrices = stockData.map(item => item.close);
+    const highPrices = stockData.map(item => item.high);
+    const lowPrices = stockData.map(item => item.low);
+    const volumes = stockData.map(item => item.volume);
+
+    // Create chart
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: 'Close Price',
+                data: closePrices,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1,
+                fill: true
+            }, {
+                label: 'High Price',
+                data: highPrices,
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1,
+                fill: false
+            }, {
+                label: 'Low Price',
+                data: lowPrices,
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: '{{ stock_data.symbol }} Price Movement Over Time'
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Price ($)'
+                    }
+                }
+            }
+        }
+    });
+
+    // Calculate statistics
+    function calculateStats() {
+        const prices = closePrices;
+        const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
+        const max = Math.max(...prices);
+        const min = Math.min(...prices);
+        const range = max - min;
+        
+        // Calculate standard deviation
+        const variance = prices.reduce((acc, price) => acc + Math.pow(price - mean, 2), 0) / prices.length;
+        const stdDev = Math.sqrt(variance);
+        
+        // Calculate price change
+        const firstPrice = prices[prices.length - 1];
+        const lastPrice = prices[0];
+        const totalChange = lastPrice - firstPrice;
+        const totalChangePercent = (totalChange / firstPrice) * 100;
+        
+        // Calculate average volume
+        const avgVolume = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+        
+        return {
+            mean: mean.toFixed(2),
+            max: max.toFixed(2),
+            min: min.toFixed(2),
+            range: range.toFixed(2),
+            stdDev: stdDev.toFixed(2),
+            totalChange: totalChange.toFixed(2),
+            totalChangePercent: totalChangePercent.toFixed(2),
+            avgVolume: Math.round(avgVolume).toLocaleString(),
+            dataPoints: prices.length
+        };
+    }
+
+    // Display statistics
+    const stats = calculateStats();
+    const statsGrid = document.getElementById('statsGrid');
+    statsGrid.innerHTML = `
+        <div class="stat-item">
+            <div class="stat-label">Average Price</div>
+            <div class="stat-value">$${stats.mean}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Highest Price</div>
+            <div class="stat-value">$${stats.max}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Lowest Price</div>
+            <div class="stat-value">$${stats.min}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Price Range</div>
+            <div class="stat-value">$${stats.range}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Standard Deviation</div>
+            <div class="stat-value">$${stats.stdDev}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Total Change</div>
+            <div class="stat-value" style="color: ${stats.totalChange >= 0 ? '#28a745' : '#dc3545'}">
+                $${stats.totalChange} (${stats.totalChangePercent}%)
+            </div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Average Volume</div>
+            <div class="stat-value">${stats.avgVolume}</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Data Points</div>
+            <div class="stat-value">${stats.dataPoints} days</div>
+        </div>
+    `;
+    {% endif %}
+    </script>
+</body>
+</html>

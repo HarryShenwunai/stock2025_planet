@@ -1,0 +1,56 @@
+<html>
+<head>
+    <title>{{ page_title if page_title else 'News Groups' }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8f8f8; }
+        .page-header { background: #fff; border: 1px solid #ccc; border-radius: 8px; margin: 16px 0; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .page-title { font-size: 1.5em; font-weight: bold; color: #333; margin-bottom: 8px; }
+        .source-url { font-size: 0.9em; color: #666; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-family: monospace; }
+        .group-card { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin: 24px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .group-title { font-size: 1.3em; font-weight: bold; margin-bottom: 10px; color: #333; }
+        .group-summary { font-size: 1em; margin-bottom: 12px; color: #444; }
+        .article-list { margin: 0; padding: 0; list-style: none; }
+        .article-item { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+        .article-title { font-weight: bold; font-size: 1.05em; }
+        .article-link { color: #0077cc; text-decoration: none; }
+        .article-meta { color: #666; font-size: 0.95em; }
+        .navigation { background: #fff; border: 1px solid #ccc; border-radius: 8px; margin: 16px 0; padding: 16px; }
+        .nav-link { color: #0077cc; text-decoration: none; margin-right: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <div class="page-title">{{ page_title if page_title else 'News Groups' }}</div>
+        <div class="source-url">Data Source: {{ source_url if source_url else 'Unknown URL' }}</div>
+    </div>
+    
+    <div class="navigation">
+        <a href="/" class="nav-link">TechSum Events</a>
+        <a href="/aapl" class="nav-link">AAPL Stock Metrics</a>
+    </div>
+    {% if groups and groups[0] %}
+        {% for group in groups %}
+            <div class="group-card">
+                <div class="group-title">{{ group.group_title if group.group_title else 'No Title' }}</div>
+                <div class="group-summary">{{ group.group_summary if group.group_summary else '' }}</div>
+                {% if group.articles %}
+                    <ul class="article-list">
+                    {% for article in group.articles %}
+                        <li class="article-item">
+                            <span class="article-title">
+                                <a class="article-link" href="{{ article.link }}" target="_blank">{{ article.title }}</a>
+                            </span><br>
+                            <span class="article-meta">Source: {{ article.feed if article.feed else 'Unknown' }} | Published: {{ article.published if article.published else 'Unknown' }}</span>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No articles found in this group.</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No news groups found or data format not recognized.</p>
+    {% endif %}
+</body>
+</html>
