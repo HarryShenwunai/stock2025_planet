@@ -1,0 +1,39 @@
+# Combined Financial Analysis Platform Requirements
+
+# Web Frameworks
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+flask==3.0.0
+jinja2==3.1.2
+
+# HTTP Requests
+requests==2.31.0
+
+# Data Analysis
+numpy==1.26.2
+pandas==2.1.3
+textblob==0.17.1
+
+# CORS Support
+fastapi-cors==0.0.6
+
+# Database
+sqlite3  # Built-in Python module
+
+# Logging (built-in)
+# datetime (built-in)
+# json (built-in)
+# asyncio (built-in)
+# threading (built-in)
+# concurrent.futures (built-in)
+# contextlib (built-in)
+# dataclasses (built-in)
+# functools (built-in)
+# typing (built-in)
+# os (built-in)
+# time (built-in)
+
+# Development Dependencies (optional)
+pytest==7.4.3
+black==23.11.0
+flake8==6.1.0

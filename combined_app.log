@@ -1,0 +1,61 @@
+2025-10-03 00:41:03,143 - httpx - INFO - HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+2025-10-03 00:41:03,147 - httpx - INFO - HTTP Request: GET http://testserver/dashboard "HTTP/1.1 200 OK"
+2025-10-03 00:41:04,275 - httpx - INFO - HTTP Request: GET http://testserver/events "HTTP/1.1 200 OK"
+2025-10-03 00:41:05,213 - httpx - INFO - HTTP Request: GET http://testserver/aapl "HTTP/1.1 200 OK"
+2025-10-03 00:41:05,217 - httpx - INFO - HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+2025-10-03 00:41:25,786 - httpx - INFO - HTTP Request: GET http://testserver/aapl "HTTP/1.1 200 OK"
+2025-10-03 00:41:25,798 - httpx - INFO - HTTP Request: GET http://testserver/api/analyze/AAPL "HTTP/1.1 200 OK"
+2025-10-03 00:41:25,802 - httpx - INFO - HTTP Request: GET http://testserver/api/analyze/ "HTTP/1.1 404 Not Found"
+2025-10-03 00:41:25,806 - httpx - INFO - HTTP Request: GET http://testserver/dashboard "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,824 - httpx - INFO - HTTP Request: GET http://testserver/events "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,828 - httpx - INFO - HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,834 - httpx - INFO - HTTP Request: GET http://testserver/news/AAPL "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,838 - httpx - INFO - HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,844 - httpx - INFO - HTTP Request: GET http://testserver/stock/AAPL "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,850 - httpx - INFO - HTTP Request: GET http://testserver/nonexistent "HTTP/1.1 404 Not Found"
+2025-10-03 00:41:26,853 - httpx - INFO - HTTP Request: GET http://testserver/api/analyze/ "HTTP/1.1 404 Not Found"
+2025-10-03 00:41:26,858 - httpx - INFO - HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,861 - httpx - INFO - HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,865 - httpx - INFO - HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+2025-10-03 00:41:26,869 - httpx - INFO - HTTP Request: GET http://testserver/dashboard "HTTP/1.1 200 OK"
+2025-10-03 00:41:27,847 - httpx - INFO - HTTP Request: GET http://testserver/events "HTTP/1.1 200 OK"
+2025-10-03 00:41:28,626 - httpx - INFO - HTTP Request: GET http://testserver/aapl "HTTP/1.1 200 OK"
+2025-10-03 00:41:28,629 - httpx - INFO - HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+2025-10-03 00:41:28,634 - httpx - INFO - HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+2025-10-03 00:41:28,636 - httpx - INFO - HTTP Request: GET http://testserver/dashboard "HTTP/1.1 200 OK"
+2025-10-03 00:41:29,328 - httpx - INFO - HTTP Request: GET http://testserver/events "HTTP/1.1 200 OK"
+2025-10-03 00:41:29,847 - httpx - INFO - HTTP Request: GET http://testserver/aapl "HTTP/1.1 200 OK"
+2025-10-03 00:41:29,852 - httpx - INFO - HTTP Request: GET http://testserver/api/health "HTTP/1.1 200 OK"
+2025-10-03 00:42:33,718 - __main__ - INFO - Starting comprehensive analysis for TSLA
+2025-10-03 12:23:13,382 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:34:48,695 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:14,676 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:24,569 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:25,984 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:26,789 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:27,442 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:27,644 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:27,862 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:28,043 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:28,238 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:28,437 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:28,641 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:28,840 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:29,085 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:29,207 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:29,385 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:29,654 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:29,781 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:29,973 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:30,541 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:30,865 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:31,066 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:31,305 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:31,448 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:31,643 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:31,858 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:32,033 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:32,219 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:32,426 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:32,600 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 13:38:32,803 - __main__ - INFO - Starting comprehensive analysis for AAPL

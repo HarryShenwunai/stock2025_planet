@@ -8,7 +8,8 @@
         .source-url { font-size: 0.9em; color: #666; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-family: monospace; }
         .stock-summary { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         .stock-symbol { font-size: 1.8em; font-weight: bold; color: #333; margin-bottom: 15px; }
-        .chart-container { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .chart-container { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); height: {{ chart_height if chart_height else '420px' }}; position: relative; overflow: hidden; }
+        #priceChart { width: 100% !important; height: 100% !important; display: block; }
         .chart-title { font-size: 1.3em; font-weight: bold; color: #333; margin-bottom: 15px; }
         .stats-container { background: #fff; border: 1px solid #bbb; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
@@ -40,7 +41,7 @@
     {% if stock_data %}
         <div class="chart-container">
             <div class="chart-title">{{ stock_data.symbol }} Price Chart</div>
-            <canvas id="priceChart" width="400" height="200"></canvas>
+            <canvas id="priceChart"></canvas>
         </div>
 
         <div class="stats-container">
@@ -126,6 +127,8 @@
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            resizeDelay: 150,
             interaction: {
                 mode: 'index',
                 intersect: false,
