@@ -5,16 +5,3 @@ numpy>=1.26
 pandas==2.0.3
 textblob==0.17.1
 python-multipart==0.0.6
-asyncio==3.4.3
-sqlite3
-concurrent.futures
-hashlib
-logging
-datetime
-typing
-dataclasses
-functools
-threading
-time
-os
-json
