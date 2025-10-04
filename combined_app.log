@@ -59,3 +59,4 @@
 2025-10-03 13:38:32,426 - __main__ - INFO - Starting comprehensive analysis for AAPL
 2025-10-03 13:38:32,600 - __main__ - INFO - Starting comprehensive analysis for AAPL
 2025-10-03 13:38:32,803 - __main__ - INFO - Starting comprehensive analysis for AAPL
+2025-10-03 19:05:00,680 - __main__ - WARNING - Config file not found, using environment variables
