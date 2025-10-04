@@ -1124,8 +1124,6 @@ async def aapl():
             .navigation {{ background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
             .nav-link {{ color: #0077cc; text-decoration: none; margin-right: 20px; font-weight: bold; }}
             .stock-summary {{ background: #fff; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
-            .chart-container {{ background: #fff; border-radius: 10px; margin: 20px 0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); height: 420px; }}
-            #priceChart { width: 100% !important; height: 100% !important; display: block; }
         </style>
     </head>
     <body>
@@ -1140,40 +1138,6 @@ async def aapl():
             <a href="/dashboard" class="nav-link">Dashboard</a>
         </div>
         
-        <div class="chart-container">
-            <h3>AAPL Price Chart</h3>
-            <canvas id="priceChart"></canvas>
-        </div>
-        
-        <div class="stock-summary">
-            <h3>Stock Information</h3>
-            <p>Symbol: AAPL</p>
-            <p>Data fetched from: {url}</p>
-            <pre>{json.dumps(stock_data, indent=2)[:500]}...</pre>
-        </div>
-        
-        <script>
-            // Simple chart example
-            const ctx = document.getElementById('priceChart').getContext('2d');
-            new Chart(ctx, {{
-                type: 'line',
-                data: {{
-                    labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5'],
-                    datasets: [{{
-                        label: 'AAPL Price',
-                        data: [150, 152, 148, 155, 153],
-                        borderColor: '#3498db',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                        tension: 0.4
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    resizeDelay: 150
-                }}
-            }});
-        </script>
     </body>
     </html>
     """
