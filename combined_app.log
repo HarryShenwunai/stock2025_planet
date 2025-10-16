@@ -73,3 +73,4 @@
 2025-10-17 00:22:08,147 - api_client - WARNING - Config file not found, using environment variables
 2025-10-17 00:22:22,713 - api_client - WARNING - Config file not found, using environment variables
 2025-10-17 00:22:22,951 - api_client - ERROR - Error fetching news data for AAPL: 401 Client Error: Unauthorized for url: https://newsapi.org/v2/everything?q=AAPL&sortBy=publishedAt&pageSize=10&apiKey=demo
+2025-10-17 00:39:34,862 - financial_agent - INFO - Starting comprehensive analysis for AAPL
