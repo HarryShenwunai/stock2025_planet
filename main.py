@@ -81,16 +81,7 @@ def init_agent():
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Application starting up...")
-    # Initialize agent in background to avoid blocking startup
-    import threading
-    def init_agent_background():
-        init_agent()
-    
-    thread = threading.Thread(target=init_agent_background)
-    thread.daemon = True
-    thread.start()
-    
-    logger.info("Startup completed - agent initializing in background")
+    logger.info("Startup completed - ready to serve requests")
     yield
     # Shutdown
     logger.info("Application shutting down...")
@@ -118,21 +109,19 @@ app.add_middleware(
 # ===== API ENDPOINTS =====
 @app.get("/")
 async def root():
-    """Root endpoint - redirects to API docs"""
-    logger.info("Root endpoint called")
-    return {
-        "message": "Financial Analysis API", 
-        "status": "running",
-        "docs": "/docs", 
-        "redoc": "/redoc",
-        "health": "/api/health"
-    }
+    """Root endpoint - Railway health check"""
+    logger.info("Root endpoint called - Railway health check")
+    return {"status": "ok", "service": "Financial Analysis API"}
 
 @app.get("/api/analyze/{symbol}")
 async def analyze_symbol(symbol: str):
     """AI analysis endpoint (from example2.py)"""
+    global agent
     if agent is None:
-        raise HTTPException(status_code=503, detail="Service unavailable: Agent not initialized")
+        logger.info("Initializing agent on first request...")
+        init_agent()
+        if agent is None:
+            raise HTTPException(status_code=503, detail="Service unavailable: Agent initialization failed")
     try:
         result = await agent.perform_comprehensive_analysis(symbol.upper())
         return asdict(result)
@@ -144,6 +133,11 @@ async def analyze_symbol(symbol: str):
 async def get_analysis_history(symbol: str):
     """Get analysis history (from example2.py)"""
     try:
+        global agent
+        if agent is None:
+            logger.info("Initializing agent for history request...")
+            init_agent()
+        
         if agent is None or agent.conn is None:
             return {"message": "Database not available", "history": []}
         
@@ -169,15 +163,11 @@ async def get_analysis_history(symbol: str):
         logger.error(f"History retrieval error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/health")
+@app.get("/health")
 async def health_check():
     """Health check endpoint for Railway"""
     logger.info("Health check called")
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "Financial Analysis API"
-    }
+    return {"status": "ok"}
 
 @app.get("/api/stock/{symbol}")
 def get_stock_data_api(symbol: str):
