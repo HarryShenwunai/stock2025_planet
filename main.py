@@ -55,7 +55,6 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('combined_app.log'),
         logging.StreamHandler()
     ]
 )
@@ -208,5 +207,4 @@ if __name__ == "__main__":
     print("Root Endpoint: http://localhost:8000/")
     print("=" * 40)
     
-    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
