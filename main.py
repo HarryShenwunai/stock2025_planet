@@ -81,8 +81,16 @@ def init_agent():
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Application starting up...")
-    init_agent()
-    logger.info("Startup completed")
+    # Initialize agent in background to avoid blocking startup
+    import threading
+    def init_agent_background():
+        init_agent()
+    
+    thread = threading.Thread(target=init_agent_background)
+    thread.daemon = True
+    thread.start()
+    
+    logger.info("Startup completed - agent initializing in background")
     yield
     # Shutdown
     logger.info("Application shutting down...")
@@ -112,11 +120,13 @@ app.add_middleware(
 async def root():
     """Root endpoint - redirects to API docs"""
     logger.info("Root endpoint called")
-    try:
-        return {"message": "Financial Analysis API", "docs": "/docs", "redoc": "/redoc"}
-    except Exception as e:
-        logger.error(f"Root endpoint error: {e}")
-        raise
+    return {
+        "message": "Financial Analysis API", 
+        "status": "running",
+        "docs": "/docs", 
+        "redoc": "/redoc",
+        "health": "/api/health"
+    }
 
 @app.get("/api/analyze/{symbol}")
 async def analyze_symbol(symbol: str):
@@ -161,11 +171,12 @@ async def get_analysis_history(symbol: str):
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint (from example2.py)"""
+    """Health check endpoint for Railway"""
+    logger.info("Health check called")
     return {
-        "status": "healthy" if agent is not None else "degraded",
-        "agent_initialized": agent is not None,
-        "timestamp": datetime.now().isoformat()
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "service": "Financial Analysis API"
     }
 
 @app.get("/api/stock/{symbol}")
