@@ -70,7 +70,7 @@ def init_agent():
     global agent
     try:
         logger.info("Starting agent initialization...")
-        agent = CombinedFinancialAgent()
+    agent = CombinedFinancialAgent()
         logger.info("Agent initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize agent: {e}")
@@ -81,20 +81,11 @@ def init_agent():
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Application starting up...")
-    try:
-        init_agent()
-        logger.info("Startup completed successfully")
-    except Exception as e:
-        logger.error(f"Startup failed: {e}")
-        logger.exception("Startup exception:")
+    init_agent()
+    logger.info("Startup completed")
     yield
     # Shutdown
     logger.info("Application shutting down...")
-    if agent and hasattr(agent, 'conn') and agent.conn:
-        try:
-            agent.conn.close()
-        except:
-            pass
 
 # ===== FASTAPI APPLICATION =====
 app = FastAPI(
@@ -120,7 +111,12 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Root endpoint - redirects to API docs"""
-    return {"message": "Financial Analysis API", "docs": "/docs", "redoc": "/redoc"}
+    logger.info("Root endpoint called")
+    try:
+        return {"message": "Financial Analysis API", "docs": "/docs", "redoc": "/redoc"}
+    except Exception as e:
+        logger.error(f"Root endpoint error: {e}")
+        raise
 
 @app.get("/api/analyze/{symbol}")
 async def analyze_symbol(symbol: str):
