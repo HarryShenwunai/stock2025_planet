@@ -70,12 +70,11 @@ def init_agent():
     global agent
     try:
         logger.info("Starting agent initialization...")
-    agent = CombinedFinancialAgent()
+        agent = CombinedFinancialAgent()
         logger.info("Agent initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize agent: {e}")
         logger.exception("Full traceback:")
-        # Create a minimal agent that won't crash
         agent = None
 
 @asynccontextmanager
@@ -83,7 +82,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Application starting up...")
     try:
-    init_agent()
+        init_agent()
         logger.info("Startup completed successfully")
     except Exception as e:
         logger.error(f"Startup failed: {e}")
@@ -95,7 +94,7 @@ async def lifespan(app: FastAPI):
         try:
             agent.conn.close()
         except:
-    pass
+            pass
 
 # ===== FASTAPI APPLICATION =====
 app = FastAPI(
