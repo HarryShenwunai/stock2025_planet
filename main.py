@@ -37,7 +37,8 @@ import numpy as np
 import pandas as pd
 import requests
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 # Removed Flask import - using FastAPI only for better compatibility
 from textblob import TextBlob
@@ -106,11 +107,16 @@ app.add_middleware(
 
 
 # ===== API ENDPOINTS =====
-@app.get("/")
+@app.get("/", response_class=PlainTextResponse)
 async def root():
-    """Root endpoint - Railway health check"""
+    """Root endpoint - minimal plain text for proxies"""
     logger.info("Root endpoint called - Railway health check")
-    return {"status": "ok", "service": "Financial Analysis API"}
+    return "ok"
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error on {request.url.path}: {exc}")
+    return PlainTextResponse("internal error", status_code=500)
 
 @app.get("/api/analyze/{symbol}")
 async def analyze_symbol(symbol: str):
