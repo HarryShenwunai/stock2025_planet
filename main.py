@@ -206,11 +206,15 @@ async def get_term_definition(term: str):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    print("Financial Analysis API")
-    print("=" * 40)
-    print("API Documentation: http://localhost:8000/docs")
-    print("ReDoc Documentation: http://localhost:8000/redoc")
-    print("Root Endpoint: http://localhost:8000/")
-    print("=" * 40)
+    print(f"Starting Financial Analysis API on port {port}")
+    print("=" * 50)
+    print("API Documentation: http://localhost:{port}/docs")
+    print("ReDoc Documentation: http://localhost:{port}/redoc")
+    print("Root Endpoint: http://localhost:{port}/")
+    print("=" * 50)
     
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    except Exception as e:
+        print(f"Failed to start server: {e}")
+        raise
