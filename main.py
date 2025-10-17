@@ -70,7 +70,7 @@ def init_agent():
     global agent
     try:
         logger.info("Starting agent initialization...")
-    agent = CombinedFinancialAgent()
+        agent = CombinedFinancialAgent()
         logger.info("Agent initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize agent: {e}")
