@@ -68,14 +68,33 @@ agent = None
 def init_agent():
     """Initialize the combined agent"""
     global agent
+    try:
+        logger.info("Starting agent initialization...")
     agent = CombinedFinancialAgent()
+        logger.info("Agent initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize agent: {e}")
+        logger.exception("Full traceback:")
+        # Create a minimal agent that won't crash
+        agent = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    logger.info("Application starting up...")
+    try:
     init_agent()
+        logger.info("Startup completed successfully")
+    except Exception as e:
+        logger.error(f"Startup failed: {e}")
+        logger.exception("Startup exception:")
     yield
     # Shutdown
+    logger.info("Application shutting down...")
+    if agent and hasattr(agent, 'conn') and agent.conn:
+        try:
+            agent.conn.close()
+        except:
     pass
 
 # ===== FASTAPI APPLICATION =====
@@ -107,6 +126,8 @@ async def root():
 @app.get("/api/analyze/{symbol}")
 async def analyze_symbol(symbol: str):
     """AI analysis endpoint (from example2.py)"""
+    if agent is None:
+        raise HTTPException(status_code=503, detail="Service unavailable: Agent not initialized")
     try:
         result = await agent.perform_comprehensive_analysis(symbol.upper())
         return asdict(result)
@@ -118,7 +139,7 @@ async def analyze_symbol(symbol: str):
 async def get_analysis_history(symbol: str):
     """Get analysis history (from example2.py)"""
     try:
-        if agent.conn is None:
+        if agent is None or agent.conn is None:
             return {"message": "Database not available", "history": []}
         
         cursor = agent.conn.cursor()
@@ -146,7 +167,11 @@ async def get_analysis_history(symbol: str):
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint (from example2.py)"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    return {
+        "status": "healthy" if agent is not None else "degraded",
+        "agent_initialized": agent is not None,
+        "timestamp": datetime.now().isoformat()
+    }
 
 @app.get("/api/stock/{symbol}")
 def get_stock_data_api(symbol: str):
