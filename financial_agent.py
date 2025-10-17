@@ -29,18 +29,23 @@ class CombinedFinancialAgent:
         
     def setup_database(self):
         """Initialize SQLite database"""
-        self.conn = sqlite3.connect('combined_agent_data.db', check_same_thread=False)
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS analysis_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                symbol TEXT,
-                timestamp TEXT,
-                analysis_result TEXT,
-                confidence REAL
-            )
-        ''')
-        self.conn.commit()
+        try:
+            self.conn = sqlite3.connect('combined_agent_data.db', check_same_thread=False)
+            cursor = self.conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS analysis_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT,
+                    timestamp TEXT,
+                    analysis_result TEXT,
+                    confidence REAL
+                )
+            ''')
+            self.conn.commit()
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.warning(f"Database initialization failed: {e}. Running without database.")
+            self.conn = None
     
     async def fetch_market_data(self, symbol: str) -> Optional[MarketData]:
         """Fetch real-time market data"""
@@ -218,6 +223,9 @@ class CombinedFinancialAgent:
     
     def store_analysis(self, result: AnalysisResult):
         """Store analysis result in database"""
+        if self.conn is None:
+            logger.warning("Database not available, skipping storage")
+            return
         try:
             cursor = self.conn.cursor()
             cursor.execute(

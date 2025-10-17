@@ -118,6 +118,9 @@ async def analyze_symbol(symbol: str):
 async def get_analysis_history(symbol: str):
     """Get analysis history (from example2.py)"""
     try:
+        if agent.conn is None:
+            return {"message": "Database not available", "history": []}
+        
         cursor = agent.conn.cursor()
         cursor.execute(
             "SELECT * FROM analysis_history WHERE symbol = ? ORDER BY timestamp DESC LIMIT 10",
@@ -184,4 +187,5 @@ if __name__ == "__main__":
     print("Root Endpoint: http://localhost:8000/")
     print("=" * 40)
     
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
