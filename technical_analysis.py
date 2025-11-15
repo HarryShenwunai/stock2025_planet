@@ -548,12 +548,337 @@ class TechnicalAnalyzer:
         return skew
     
     @staticmethod
+    def calculate_hurst_exponent(prices: List[float]) -> float:
+        """
+        Calculate Hurst Exponent (H) to measure the long-term memory of time series.
+        
+        H < 0.5: Mean-reverting (anti-persistent) - oversold/overbought tend to revert
+        H = 0.5: Random walk (Geometric Brownian Motion) - unpredictable
+        H > 0.5: Trending (persistent) - trends tend to continue
+        
+        Uses rescaled range (R/S) analysis developed by H.E. Hurst.
+        """
+        if len(prices) < 20:
+            return 0.5  # Assume random walk for insufficient data
+        
+        prices = np.array(prices)
+        lags = range(2, min(20, len(prices) // 2))
+        
+        # Calculate R/S for different time lags
+        tau = []
+        rs = []
+        
+        for lag in lags:
+            # Divide series into subseries
+            subseries_count = len(prices) // lag
+            rs_values = []
+            
+            for i in range(subseries_count):
+                subseries = prices[i*lag:(i+1)*lag]
+                
+                # Mean
+                mean = np.mean(subseries)
+                
+                # Mean-adjusted series
+                Y = subseries - mean
+                
+                # Cumulative deviate series
+                Z = np.cumsum(Y)
+                
+                # Range
+                R = np.max(Z) - np.min(Z)
+                
+                # Standard deviation
+                S = np.std(subseries)
+                
+                if S != 0:
+                    rs_values.append(R / S)
+            
+            if rs_values:
+                tau.append(lag)
+                rs.append(np.mean(rs_values))
+        
+        if len(tau) < 2:
+            return 0.5
+        
+        # Linear regression on log-log plot
+        log_tau = np.log(tau)
+        log_rs = np.log(rs)
+        
+        # Calculate Hurst exponent (slope)
+        slope, _, _ = TechnicalAnalyzer.calculate_linear_regression(log_rs)
+        
+        return round(min(max(slope, 0), 1), 3)  # Clamp between 0 and 1
+    
+    @staticmethod
+    def calculate_fractal_dimension(prices: List[float]) -> float:
+        """
+        Calculate Fractal Dimension using Higuchi's method.
+        
+        Measures the complexity and self-similarity of the time series.
+        D closer to 1: Smooth, trending
+        D closer to 2: Rough, noisy, random
+        
+        Developed by Higuchi in 1988.
+        """
+        if len(prices) < 10:
+            return 1.5
+        
+        prices = np.array(prices)
+        N = len(prices)
+        
+        k_max = min(10, N // 4)
+        k_values = range(1, k_max + 1)
+        Lk = []
+        
+        for k in k_values:
+            Lm = []
+            for m in range(k):
+                # Construct subsequence
+                indices = np.arange(m, N, k)
+                if len(indices) < 2:
+                    continue
+                
+                # Calculate length
+                subseries = prices[indices]
+                length = np.sum(np.abs(np.diff(subseries))) * (N - 1) / (len(indices) * k)
+                Lm.append(length)
+            
+            if Lm:
+                Lk.append(np.mean(Lm))
+        
+        if len(Lk) < 2:
+            return 1.5
+        
+        # Linear regression on log-log plot
+        log_k = np.log(k_values[:len(Lk)])
+        log_Lk = np.log(Lk)
+        
+        slope, _, _ = TechnicalAnalyzer.calculate_linear_regression(log_Lk)
+        
+        # Fractal dimension is negative of slope
+        fractal_dim = -slope
+        
+        return round(min(max(fractal_dim, 1), 2), 3)
+    
+    @staticmethod
+    def perform_fourier_analysis(prices: List[float], top_n: int = 3) -> Dict:
+        """
+        Perform Fast Fourier Transform (FFT) to identify dominant cycles.
+        
+        Identifies periodicities in price movement using frequency domain analysis.
+        Useful for detecting cyclical patterns and seasonality.
+        """
+        if len(prices) < 10:
+            return {"dominant_periods": [], "power_spectrum": []}
+        
+        # Detrend the data
+        slope, intercept, _ = TechnicalAnalyzer.calculate_linear_regression(prices)
+        x = np.arange(len(prices))
+        trend = slope * x + intercept
+        detrended = np.array(prices) - trend
+        
+        # Apply FFT
+        fft = np.fft.fft(detrended)
+        power = np.abs(fft) ** 2
+        freqs = np.fft.fftfreq(len(detrended))
+        
+        # Only consider positive frequencies
+        positive_freqs_mask = freqs > 0
+        freqs = freqs[positive_freqs_mask]
+        power = power[positive_freqs_mask]
+        
+        # Find dominant frequencies
+        sorted_indices = np.argsort(power)[::-1]
+        
+        dominant_periods = []
+        for i in range(min(top_n, len(sorted_indices))):
+            idx = sorted_indices[i]
+            if freqs[idx] > 0:
+                period = 1 / freqs[idx]
+                if 2 <= period <= len(prices) / 2:  # Reasonable periods only
+                    dominant_periods.append({
+                        "period_days": round(period, 1),
+                        "power": round(float(power[idx]), 2),
+                        "frequency": round(float(freqs[idx]), 4)
+                    })
+        
+        return {
+            "dominant_periods": dominant_periods,
+            "interpretation": "Cyclical pattern detected" if dominant_periods else "No clear cycles"
+        }
+    
+    @staticmethod
+    def calculate_entropy(prices: List[float], bins: int = 10) -> float:
+        """
+        Calculate Shannon Entropy to measure unpredictability/randomness.
+        
+        High entropy: High unpredictability, random behavior
+        Low entropy: Low unpredictability, more predictable patterns
+        
+        Based on information theory by Claude Shannon.
+        """
+        if len(prices) < bins:
+            return 0.0
+        
+        # Calculate returns
+        returns = np.diff(prices) / prices[:-1]
+        
+        # Create histogram
+        hist, _ = np.histogram(returns, bins=bins)
+        
+        # Calculate probabilities
+        probabilities = hist / len(returns)
+        probabilities = probabilities[probabilities > 0]  # Remove zeros
+        
+        # Calculate entropy
+        entropy = -np.sum(probabilities * np.log2(probabilities))
+        
+        return round(entropy, 3)
+    
+    @staticmethod
+    def calculate_sharpe_ratio(prices: List[float], risk_free_rate: float = 0.02) -> float:
+        """
+        Calculate Sharpe Ratio - risk-adjusted return measure.
+        
+        Sharpe Ratio = (Mean Return - Risk Free Rate) / Standard Deviation of Returns
+        
+        Higher is better. Developed by William F. Sharpe.
+        > 1: Good
+        > 2: Very Good
+        > 3: Excellent
+        """
+        if len(prices) < 2:
+            return 0.0
+        
+        returns = np.diff(prices) / prices[:-1]
+        
+        mean_return = np.mean(returns) * 252  # Annualized (assuming daily data)
+        std_return = np.std(returns) * np.sqrt(252)  # Annualized volatility
+        
+        if std_return == 0:
+            return 0.0
+        
+        sharpe = (mean_return - risk_free_rate) / std_return
+        
+        return round(sharpe, 3)
+    
+    @staticmethod
+    def calculate_sortino_ratio(prices: List[float], risk_free_rate: float = 0.02) -> float:
+        """
+        Calculate Sortino Ratio - downside risk-adjusted return.
+        
+        Like Sharpe but only considers downside volatility (negative returns).
+        Developed by Frank A. Sortino.
+        """
+        if len(prices) < 2:
+            return 0.0
+        
+        returns = np.diff(prices) / prices[:-1]
+        
+        mean_return = np.mean(returns) * 252  # Annualized
+        
+        # Downside deviation (only negative returns)
+        negative_returns = returns[returns < 0]
+        
+        if len(negative_returns) == 0:
+            return float('inf')  # Perfect - no downside
+        
+        downside_std = np.std(negative_returns) * np.sqrt(252)
+        
+        if downside_std == 0:
+            return 0.0
+        
+        sortino = (mean_return - risk_free_rate) / downside_std
+        
+        return round(sortino, 3)
+    
+    @staticmethod
+    def calculate_maximum_drawdown(prices: List[float]) -> Dict:
+        """
+        Calculate Maximum Drawdown (MDD) - largest peak-to-trough decline.
+        
+        Critical risk metric for understanding worst-case scenarios.
+        """
+        if len(prices) < 2:
+            return {"max_drawdown_pct": 0.0, "peak_price": 0.0, "trough_price": 0.0}
+        
+        prices = np.array(prices)
+        
+        # Calculate running maximum
+        running_max = np.maximum.accumulate(prices)
+        
+        # Calculate drawdown at each point
+        drawdown = (prices - running_max) / running_max
+        
+        # Find maximum drawdown
+        max_dd_idx = np.argmin(drawdown)
+        max_dd = drawdown[max_dd_idx]
+        
+        # Find the peak before this drawdown
+        peak_idx = np.argmax(prices[:max_dd_idx+1]) if max_dd_idx > 0 else 0
+        
+        return {
+            "max_drawdown_pct": round(max_dd * 100, 2),
+            "peak_price": round(float(prices[peak_idx]), 2),
+            "trough_price": round(float(prices[max_dd_idx]), 2),
+            "recovery_needed_pct": round(abs(max_dd / (1 + max_dd) * 100), 2) if max_dd < 0 else 0
+        }
+    
+    @staticmethod
+    def calculate_correlation_dimension(prices: List[float]) -> float:
+        """
+        Calculate Correlation Dimension to measure the complexity of attractors.
+        
+        Estimates the fractal dimension of the system's attractor.
+        Used in chaos theory to analyze deterministic systems.
+        """
+        if len(prices) < 20:
+            return 1.0
+        
+        prices = np.array(prices)
+        
+        # Normalize prices
+        normalized = (prices - np.mean(prices)) / np.std(prices)
+        
+        # Calculate distances between all pairs
+        distances = []
+        for i in range(len(normalized)):
+            for j in range(i + 1, len(normalized)):
+                dist = abs(normalized[i] - normalized[j])
+                distances.append(dist)
+        
+        if not distances:
+            return 1.0
+        
+        distances = np.array(distances)
+        
+        # Count pairs within different radii
+        radii = np.percentile(distances, [10, 20, 30, 40, 50])
+        counts = [np.sum(distances <= r) for r in radii]
+        
+        # Log-log regression
+        log_radii = np.log(radii + 1e-10)
+        log_counts = np.log(np.array(counts) + 1)
+        
+        slope, _, _ = TechnicalAnalyzer.calculate_linear_regression(log_counts)
+        
+        return round(min(max(slope, 0.5), 3.0), 3)
+    
+    @staticmethod
     def comprehensive_analysis(prices: List[float], highs: Optional[List[float]] = None, 
                               lows: Optional[List[float]] = None, volumes: Optional[List[int]] = None) -> Dict:
         """
-        Perform comprehensive technical analysis.
+        Perform comprehensive scientific technical analysis.
         
-        Returns a dictionary with all technical indicators and their interpretations.
+        Combines classical technical indicators with advanced statistical methods:
+        - Traditional indicators (RSI, MACD, Bollinger Bands, etc.)
+        - Time series analysis (Hurst, Fractal Dimension, Fourier)
+        - Risk metrics (Sharpe, Sortino, Maximum Drawdown)
+        - Information theory (Entropy)
+        - Pattern recognition (Statistical and geometric)
+        
+        Returns a dictionary with all indicators and their interpretations.
         """
         if highs is None:
             highs = prices
@@ -562,7 +887,7 @@ class TechnicalAnalyzer:
         if volumes is None:
             volumes = [1000000] * len(prices)
         
-        # Calculate all indicators
+        # Traditional Technical Indicators
         rsi = TechnicalAnalyzer.calculate_rsi(prices)
         macd, signal, histogram = TechnicalAnalyzer.calculate_macd(prices)
         upper_bb, middle_bb, lower_bb = TechnicalAnalyzer.calculate_bollinger_bands(prices)
@@ -571,6 +896,23 @@ class TechnicalAnalyzer:
         obv = TechnicalAnalyzer.calculate_obv(prices, volumes)
         pattern = TechnicalAnalyzer.detect_pattern(prices)
         
+        # Advanced Statistical Analysis
+        hurst = TechnicalAnalyzer.calculate_hurst_exponent(prices)
+        fractal_dim = TechnicalAnalyzer.calculate_fractal_dimension(prices)
+        fourier = TechnicalAnalyzer.perform_fourier_analysis(prices)
+        entropy = TechnicalAnalyzer.calculate_entropy(prices)
+        
+        # Risk Metrics
+        sharpe = TechnicalAnalyzer.calculate_sharpe_ratio(prices)
+        sortino = TechnicalAnalyzer.calculate_sortino_ratio(prices)
+        max_dd = TechnicalAnalyzer.calculate_maximum_drawdown(prices)
+        
+        # Linear Regression
+        slope, intercept, r_squared = TechnicalAnalyzer.calculate_linear_regression(prices)
+        
+        # Support & Resistance
+        support_levels, resistance_levels = TechnicalAnalyzer.detect_support_resistance(prices)
+        
         # Interpretations
         rsi_signal = "oversold" if rsi < 30 else "overbought" if rsi > 70 else "neutral"
         macd_signal = "bullish" if histogram > 0 else "bearish"
@@ -578,28 +920,86 @@ class TechnicalAnalyzer:
                      "near_lower" if prices[-1] < middle_bb - (middle_bb - lower_bb) * 0.5 else "middle"
         stoch_signal = "oversold" if stoch_k < 20 else "overbought" if stoch_k > 80 else "neutral"
         
+        hurst_interpretation = (
+            "mean_reverting" if hurst < 0.45 else
+            "random_walk" if 0.45 <= hurst <= 0.55 else
+            "trending"
+        )
+        
+        market_quality = (
+            "excellent" if sharpe > 2 else
+            "good" if sharpe > 1 else
+            "fair" if sharpe > 0 else
+            "poor"
+        )
+        
         return {
-            "rsi": {"value": rsi, "signal": rsi_signal},
-            "macd": {
-                "macd_line": macd,
-                "signal_line": signal,
-                "histogram": histogram,
-                "signal": macd_signal
+            "classical_indicators": {
+                "rsi": {"value": rsi, "signal": rsi_signal},
+                "macd": {
+                    "macd_line": macd,
+                    "signal_line": signal,
+                    "histogram": histogram,
+                    "signal": macd_signal
+                },
+                "bollinger_bands": {
+                    "upper": upper_bb,
+                    "middle": middle_bb,
+                    "lower": lower_bb,
+                    "position": bb_position
+                },
+                "stochastic": {
+                    "k": stoch_k,
+                    "d": stoch_d,
+                    "signal": stoch_signal
+                },
+                "atr": atr,
+                "obv": obv
             },
-            "bollinger_bands": {
-                "upper": upper_bb,
-                "middle": middle_bb,
-                "lower": lower_bb,
-                "position": bb_position
+            "pattern_recognition": pattern,
+            "statistical_analysis": {
+                "hurst_exponent": {
+                    "value": hurst,
+                    "interpretation": hurst_interpretation,
+                    "description": "Measures market memory and predictability"
+                },
+                "fractal_dimension": {
+                    "value": fractal_dim,
+                    "interpretation": "smooth" if fractal_dim < 1.5 else "rough",
+                    "description": "Measures complexity of price movement"
+                },
+                "entropy": {
+                    "value": entropy,
+                    "interpretation": "high_randomness" if entropy > 2.5 else "low_randomness",
+                    "description": "Measures unpredictability"
+                },
+                "linear_regression": {
+                    "slope": round(slope, 4),
+                    "r_squared": round(r_squared, 3),
+                    "trend_strength": "strong" if r_squared > 0.7 else "weak"
+                }
             },
-            "stochastic": {
-                "k": stoch_k,
-                "d": stoch_d,
-                "signal": stoch_signal
+            "cyclical_analysis": fourier,
+            "risk_metrics": {
+                "sharpe_ratio": {
+                    "value": sharpe,
+                    "quality": market_quality,
+                    "description": "Risk-adjusted return measure"
+                },
+                "sortino_ratio": {
+                    "value": sortino,
+                    "description": "Downside risk-adjusted return"
+                },
+                "maximum_drawdown": max_dd
             },
-            "atr": atr,
-            "obv": obv,
-            "pattern": pattern,
+            "support_resistance": {
+                "support_levels": [round(s, 2) for s in support_levels[:3]],
+                "resistance_levels": [round(r, 2) for r in resistance_levels[:3]]
+            },
             "current_price": prices[-1],
-            "price_change_5d": round(((prices[-1] - prices[-5]) / prices[-5] * 100), 2) if len(prices) >= 5 else 0
+            "price_statistics": {
+                "5d_change_pct": round(((prices[-1] - prices[-5]) / prices[-5] * 100), 2) if len(prices) >= 5 else 0,
+                "20d_volatility": round(np.std(prices[-20:]) / np.mean(prices[-20:]) * 100, 2) if len(prices) >= 20 else 0,
+                "trend_direction": "up" if slope > 0 else "down"
+            }
         }
