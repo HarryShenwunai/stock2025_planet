@@ -174,6 +174,166 @@ async def health_check():
     logger.info("Health check called")
     return {"status": "ok"}
 
+def _normalize(value: float, min_val: float, max_val: float) -> float:
+    """Normalize value to [0, 1] range with clipping"""
+    if max_val == min_val:
+        return 0.5
+    normalized = (value - min_val) / (max_val - min_val)
+    return max(0.0, min(1.0, normalized))
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """Safely convert to float with fallback"""
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def _score_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Compute a composite score with normalization and error handling.
+    Returns: dict with score, confidence, and risk_level
+    """
+    tech = analysis.get("technical_indicators") or {}
+    
+    # 1. 优先使用已有的综合分数
+    if "composite_score" in tech:
+        try:
+            comp_score = _safe_float(tech.get("composite_score"), 0.0)
+            return {
+                "score": round(comp_score, 3),
+                "recommendation": analysis.get("recommendation", "UNKNOWN"),
+                "confidence": _safe_float(analysis.get("confidence"), 0.0),
+                "risk_level": analysis.get("risk_level", "UNKNOWN")
+            }
+        except Exception:
+            pass
+    
+    # 2. 回退打分：提取因子并标准化
+    try:
+        # 基础建议分 (-2 到 +2)
+        rec = (analysis.get("recommendation") or "").upper()
+        rec_map = {"STRONG_BUY": 2.0, "BUY": 1.0, "HOLD": 0.0, "SELL": -1.0, "STRONG_SELL": -2.0}
+        base = rec_map.get(rec, 0.0)
+        
+        # 提取原始值
+        conf = _safe_float(analysis.get("confidence"), 0.0)
+        r2 = _safe_float(tech.get("trend_r2"), 0.0)
+        sharpe_raw = _safe_float(tech.get("sharpe"), 0.0)
+        sortino_raw = _safe_float(tech.get("sortino"), 0.0)
+        max_dd_raw = abs(_safe_float(tech.get("max_drawdown_pct"), 0.0))
+        vol_raw = _safe_float(tech.get("volatility"), 0.0)
+        
+        # 标准化到 [0, 1] (避免量级差异)
+        sharpe = _normalize(sharpe_raw, -2.0, 3.0)  # 通常 -2 到 3
+        sortino = _normalize(sortino_raw, -2.0, 3.0)
+        max_dd = _normalize(max_dd_raw, 0.0, 50.0)  # 0-50% 回撤
+        vol = _normalize(vol_raw, 0.0, 100.0)  # 0-100% 波动率
+        # r2 和 conf 已经是 [0, 1]
+        
+        # 数据完整度（用于置信度调整）
+        fields_checked = ["trend_r2", "sharpe", "sortino", "max_drawdown_pct", "volatility"]
+        available_fields = sum(1 for f in fields_checked if tech.get(f) is not None)
+        data_completeness = available_fields / len(fields_checked)
+        
+        # 加权计算 (基础建议 + 技术因子)
+        technical_score = (
+            0.25 * r2 +           # 趋势强度
+            0.20 * sharpe +       # 风险调整收益
+            0.15 * sortino +      # 下行风险收益
+            0.20 * (1 - max_dd) + # 回撤惩罚（反转）
+            0.20 * (1 - vol)      # 波动率惩罚（反转）
+        )
+        
+        # 综合分数：基础建议加权 + 技术分数
+        # 基础建议范围 -2 到 +2，技术分数范围 0 到 1
+        final_score = base * (0.7 + 0.3 * conf) + 2.0 * technical_score
+        
+        # 调整置信度
+        adjusted_confidence = conf * data_completeness
+        
+        # 风险等级（基于波动率和回撤）
+        risk_score = (max_dd_raw / 50.0 + vol_raw / 100.0) / 2
+        if risk_score < 0.2:
+            risk_level = "LOW"
+        elif risk_score < 0.4:
+            risk_level = "MODERATE"
+        elif risk_score < 0.6:
+            risk_level = "HIGH"
+        else:
+            risk_level = "VERY_HIGH"
+        
+        return {
+            "score": round(final_score, 3),
+            "recommendation": rec if rec else "UNKNOWN",
+            "confidence": round(adjusted_confidence, 3),
+            "risk_level": risk_level
+        }
+        
+    except Exception as e:
+        logger.warning(f"Score calculation error: {e}, using fallback")
+        return {
+            "score": 0.0,
+            "recommendation": "UNKNOWN",
+            "confidence": 0.0,
+            "risk_level": "UNKNOWN"
+        }
+
+@app.get("/api/rank")
+async def rank_analyzed(limit: int = 10):
+    """
+    Rank analyzed stocks using enriched multi-factor score.
+    Returns sorted list with score, recommendation, confidence, and risk level.
+    """
+    try:
+        if agent is None or agent.conn is None:
+            return {"message": "Database not available", "ranked": []}
+        cursor = agent.conn.cursor()
+        cursor.execute(
+            """
+            SELECT t1.symbol, t1.timestamp, t1.analysis_result, t1.confidence
+            FROM analysis_history t1
+            JOIN (
+                SELECT symbol, MAX(id) AS max_id
+                FROM analysis_history
+                GROUP BY symbol
+            ) t2
+            ON t1.symbol = t2.symbol AND t1.id = t2.max_id
+            """
+        )
+        rows = cursor.fetchall()
+        ranked: List[Dict[str, Any]] = []
+        for symbol, ts, analysis_json, _c in rows:
+            try:
+                analysis = json.loads(analysis_json)
+            except Exception:
+                continue
+            
+            # _score_analysis 现在返回字典
+            score_info = _score_analysis(analysis)
+            
+            ranked.append({
+                "symbol": symbol,
+                "score": score_info["score"],
+                "recommendation": score_info["recommendation"],
+                "confidence": score_info["confidence"],
+                "risk_level": score_info["risk_level"],
+                "current_price": analysis.get("current_price"),
+                "timestamp": ts
+            })
+        
+        # 按分数降序排序
+        ranked.sort(key=lambda x: x["score"], reverse=True)
+        return {
+            "count": len(ranked), 
+            "ranked": ranked[: max(1, limit)],
+            "note": "Score range: approximately -2 to +4 (higher is better)"
+        }
+    except Exception as e:
+        logger.error(f"Rank error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/stock/{symbol}")
 def get_stock_data_api(symbol: str):
     """Stock data endpoint (from example3.py)"""

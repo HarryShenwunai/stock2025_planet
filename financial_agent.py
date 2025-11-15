@@ -85,6 +85,75 @@ class CombinedFinancialAgent:
         except Exception as e:
             logger.error(f"Error fetching market data for {symbol}: {e}")
     
+    async def fetch_historical_prices(self, symbol: str, days: int = 100) -> List[float]:
+        """Fetch real historical price data from Alpha Vantage"""
+        cache_key = f"history_{symbol}_{days}"
+        cached_data = self.cache.get(cache_key)
+        if cached_data:
+            return cached_data
+        
+        api_key = self.config.get('alpha_vantage_key')
+        
+        try:
+            # Use TIME_SERIES_DAILY for historical data
+            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={api_key}&outputsize=compact"
+            response = requests.get(url, timeout=15)
+            
+            if response.status_code != 200:
+                raise Exception(f"HTTP {response.status_code}")
+            
+            data = response.json()
+            
+            if "Time Series (Daily)" in data:
+                time_series = data["Time Series (Daily)"]
+                # Extract closing prices, sorted from oldest to newest
+                dates = sorted(time_series.keys())[-days:]
+                prices = [float(time_series[date]["4. close"]) for date in dates]
+                
+                if len(prices) >= 14:  # Minimum for RSI calculation
+                    self.cache.set(cache_key, prices, ttl=3600)  # Cache for 1 hour
+                    logger.info(f"Fetched {len(prices)} historical prices for {symbol}")
+                    return prices
+                else:
+                    raise Exception(f"Insufficient data: only {len(prices)} days available")
+            else:
+                # Check for API limit error
+                if "Note" in data or "Information" in data:
+                    logger.warning(f"API limit reached: {data.get('Note') or data.get('Information')}")
+                    raise Exception("API rate limit exceeded")
+                raise Exception("Invalid historical data format")
+        
+        except Exception as e:
+            logger.warning(f"Failed to fetch real historical data for {symbol}: {e}")
+            # Fallback: Generate more realistic synthetic data with random walk
+            logger.info(f"Using enhanced synthetic data for {symbol}")
+            return None
+    
+    def _generate_synthetic_prices(self, current_price: float, days: int = 100) -> List[float]:
+        """Generate realistic synthetic price data using random walk with drift"""
+        np.random.seed(None)  # Ensure randomness
+        prices = [current_price]
+        
+        # Parameters for more realistic simulation
+        daily_return_mean = 0.0005  # ~0.05% daily average (12% annual)
+        daily_volatility = 0.015    # ~1.5% daily volatility (24% annual)
+        
+        for _ in range(days - 1):
+            # Geometric Brownian Motion: S(t+1) = S(t) * exp(μ*dt + σ*sqrt(dt)*Z)
+            random_shock = np.random.normal(0, 1)
+            daily_return = daily_return_mean + daily_volatility * random_shock
+            next_price = prices[-1] * (1 + daily_return)
+            prices.append(max(next_price, current_price * 0.5))  # Floor at 50% of current
+        
+        # Reverse to oldest-to-newest order, ending near current price
+        prices.reverse()
+        
+        # Adjust last price to match current (smooth transition)
+        adjustment = current_price / prices[-1]
+        prices = [p * adjustment for p in prices]
+        
+        return prices
+    
     async def perform_comprehensive_analysis(self, symbol: str) -> AnalysisResult:
         """Perform comprehensive AI analysis"""
         logger.info(f"Starting comprehensive analysis for {symbol}")
@@ -93,13 +162,45 @@ class CombinedFinancialAgent:
         if not market_data:
             raise ValueError(f"Could not fetch market data for {symbol}")
         
-        # Simulate historical prices for analysis
-        historical_prices = [market_data.close_price + (i * 0.5) for i in range(-30, 1)]
+        # Try to fetch real historical prices
+        historical_prices = await self.fetch_historical_prices(symbol, days=100)
+        
+        # Fallback to synthetic data if real data unavailable
+        if historical_prices is None or len(historical_prices) < 14:
+            logger.warning(f"Using synthetic price data for {symbol}")
+            historical_prices = self._generate_synthetic_prices(market_data.close_price, days=100)
+            data_source = "synthetic"
+        else:
+            data_source = "real"
+            logger.info(f"Using {len(historical_prices)} days of real historical data")
         
         # Technical Analysis
         rsi = self.technical_analyzer.calculate_rsi(historical_prices)
         macd, signal, histogram = self.technical_analyzer.calculate_macd(historical_prices)
-        pattern = self.technical_analyzer.detect_pattern(historical_prices)
+        # Advanced scientific analysis
+        try:
+            comp = self.technical_analyzer.comprehensive_analysis(historical_prices)
+        except Exception as _:
+            comp = {}
+        pattern_info = comp.get("pattern_recognition") or {}
+        pattern = pattern_info.get("pattern") if isinstance(pattern_info, dict) else str(pattern_info or "unknown")
+
+        stat = comp.get("statistical_analysis") or {}
+        hurst = float(((stat.get("hurst_exponent") or {}).get("value", 0.5)))
+        fractal_dim = float(((stat.get("fractal_dimension") or {}).get("value", 1.5)))
+        entropy = float(((stat.get("entropy") or {}).get("value", 0.0)))
+        linreg = stat.get("linear_regression") or {}
+        trend_r2 = float(linreg.get("r_squared", 0.0))
+
+        risk_metrics = comp.get("risk_metrics") or {}
+        sharpe = float(((risk_metrics.get("sharpe_ratio") or {}).get("value", 0.0)))
+        sortino = float(((risk_metrics.get("sortino_ratio") or {}).get("value", 0.0)))
+        max_dd = risk_metrics.get("maximum_drawdown") or {}
+        max_drawdown_pct = float(max_dd.get("max_drawdown_pct", 0.0))
+
+        cyc = comp.get("cyclical_analysis") or {}
+        dominant = (cyc.get("dominant_periods") or [])
+        cycle_period = float(dominant[0]["period_days"]) if dominant else 0.0
         
         # Risk Assessment
         volatility = self.calculate_volatility(historical_prices)
@@ -107,19 +208,37 @@ class CombinedFinancialAgent:
         
         # Generate Recommendation
         recommendation = self.generate_recommendation(market_data, rsi, macd, 0.1, volatility)
+
+        # Compose a composite multi-factor score ([-inf, inf], higher better)
+        # momentum( macd, rsi ), trend (r2), risk-adjusted (sharpe, sortino),
+        # risk penalty (max drawdown, volatility), information quality (entropy)
+        momentum = (1 if macd > 0 else -1 if macd < 0 else 0) + (1 - abs(rsi - 50) / 50)  # 0~2
+        trend_quality = trend_r2  # 0~1
+        risk_adjusted = max(sharpe, 0) * 0.5 + max(sortino, 0) * 0.5  # >=0 preferred
+        risk_penalty = (max_drawdown_pct / 100.0) * 0.8 + (volatility / 100.0) * 0.2  # normalize
+        info_quality = max(0.0, 3.5 - entropy) / 3.5  # 0~1，越低熵越好
+        composite_score = round(1.2 * momentum + 1.0 * trend_quality + 1.0 * risk_adjusted + 0.6 * info_quality - 1.2 * risk_penalty, 3)
         
         # Calculate prices
         target_price = self.calculate_target_price(market_data, recommendation)
         stop_loss = self.calculate_stop_loss(market_data, risk_level)
         
-        # Generate reasoning
+        # Generate reasoning with data source info
         reasoning = self.generate_reasoning(market_data, rsi, macd, 0.1, pattern, recommendation)
+        reasoning += f" [Data source: {data_source}, {len(historical_prices)} days]"
+        
+        # Adjust confidence based on data source
+        base_confidence = 0.75
+        if data_source == "synthetic":
+            confidence = base_confidence * 0.6  # Lower confidence for synthetic data
+        else:
+            confidence = base_confidence
         
         result = AnalysisResult(
             symbol=symbol,
             current_price=market_data.close_price,
             trend=self.determine_trend(historical_prices),
-            confidence=0.75,
+            confidence=confidence,
             risk_level=risk_level,
             recommendation=recommendation,
             target_price=target_price,
@@ -130,7 +249,19 @@ class CombinedFinancialAgent:
                 "macd": macd,
                 "signal": signal,
                 "histogram": histogram,
-                "volatility": volatility
+                "volatility": volatility,
+                # Extended metrics for richer selection
+                "hurst": hurst,
+                "fractal_dimension": fractal_dim,
+                "entropy": entropy,
+                "trend_r2": trend_r2,
+                "sharpe": sharpe,
+                "sortino": sortino,
+                "max_drawdown_pct": max_drawdown_pct,
+                "cycle_period": cycle_period,
+                "composite_score": composite_score,
+                "data_source": data_source,  # Add data source indicator
+                "history_days": len(historical_prices)
             },
             reasoning=reasoning,
             timestamp=datetime.now().isoformat()
