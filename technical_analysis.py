@@ -58,10 +58,15 @@ class TechnicalAnalyzer:
             avg_loss = (avg_loss * (period - 1) + losses[i]) / period
         
         if avg_loss == 0:
-            return 100.0
+            # When there are no losses, RSI approaches 100
+            # Cap at 99.9 to avoid extreme values that may indicate data issues
+            return 99.9
         
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
+        
+        # Cap RSI at reasonable bounds (0.1 to 99.9)
+        rsi = max(0.1, min(99.9, rsi))
         
         return round(rsi, 2)
     

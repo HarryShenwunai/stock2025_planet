@@ -93,8 +93,28 @@ class CombinedFinancialAgent:
         if not market_data:
             raise ValueError(f"Could not fetch market data for {symbol}")
         
-        # Simulate historical prices for analysis
-        historical_prices = [market_data.close_price + (i * 0.5) for i in range(-30, 1)]
+        # Simulate historical prices for analysis with realistic volatility
+        # Add some randomness to simulate real market behavior
+        np.random.seed(int(market_data.close_price * 100) % 10000)  # Deterministic but varied
+        base_price = market_data.close_price
+        historical_prices = []
+        
+        # Start from a price slightly different from current (simulating past)
+        # Generate 30 days of historical prices with realistic volatility
+        # Use random walk with slight mean reversion toward current price
+        start_price = base_price * (1 + np.random.normal(0, 0.05))  # Start ~5% away
+        current_sim_price = start_price
+        
+        for i in range(30):
+            # Random walk with mean reversion toward current price
+            random_change = np.random.normal(0, base_price * 0.01)  # ~1% daily volatility
+            mean_reversion = (base_price - current_sim_price) * 0.1  # Pull toward current price
+            change = random_change + mean_reversion
+            current_sim_price = current_sim_price + change
+            historical_prices.append(current_sim_price)
+        
+        # Add current price as the final data point
+        historical_prices.append(market_data.close_price)
         
         # Technical Analysis
         rsi = self.technical_analyzer.calculate_rsi(historical_prices)
@@ -153,7 +173,9 @@ class CombinedFinancialAgent:
         risk_score = 0
         if volatility > 5: risk_score += 2
         elif volatility > 2: risk_score += 1
-        if rsi > 80 or rsi < 20: risk_score += 2
+        # Handle extreme RSI values with higher risk
+        if rsi >= 95 or rsi <= 5: risk_score += 3  # Extreme values indicate high risk
+        elif rsi > 80 or rsi < 20: risk_score += 2
         elif rsi > 70 or rsi < 30: risk_score += 1
         if abs(sentiment) > 0.5: risk_score += 1
         
@@ -165,8 +187,14 @@ class CombinedFinancialAgent:
                               macd: float, sentiment: float, volatility: float) -> str:
         """Generate trading recommendation"""
         score = 0
-        if rsi < 30: score += 2
-        elif rsi > 70: score -= 2
+        # Handle extreme RSI values more carefully
+        if rsi < 30: score += 2  # Oversold - buying opportunity
+        elif rsi < 40: score += 1  # Mildly oversold
+        elif rsi > 70: score -= 2  # Overbought - selling signal
+        elif rsi > 60: score -= 1  # Mildly overbought
+        elif rsi >= 95: score -= 3  # Extreme overbought - strong sell signal
+        elif rsi <= 5: score += 3  # Extreme oversold - strong buy signal
+        
         if macd > 0: score += 1
         else: score -= 1
         score += sentiment * 2
@@ -197,8 +225,9 @@ class CombinedFinancialAgent:
     def determine_trend(self, prices: List[float]) -> str:
         """Determine overall price trend"""
         if len(prices) < 3: return "UNKNOWN"
-        recent_avg = sum(prices[:5]) / 5
-        older_avg = sum(prices[-5:]) / 5
+        # Recent prices are the last elements, older prices are earlier elements
+        recent_avg = sum(prices[-5:]) / min(5, len(prices))
+        older_avg = sum(prices[:5]) / min(5, len(prices))
         if recent_avg > older_avg * 1.02: return "UPTREND"
         elif recent_avg < older_avg * 0.98: return "DOWNTREND"
         else: return "SIDEWAYS"
@@ -206,12 +235,22 @@ class CombinedFinancialAgent:
     def generate_reasoning(self, market_data: MarketData, rsi: float, macd: float,
                           sentiment: float, pattern: str, recommendation: str) -> str:
         """Generate reasoning for the recommendation"""
+        # Handle RSI interpretation with more nuance
+        if rsi >= 95:
+            rsi_interpretation = f"RSI is extremely overbought ({rsi:.1f}) - strong bearish signal, potential reversal likely"
+        elif rsi > 70:
+            rsi_interpretation = f"RSI indicates overbought conditions ({rsi:.1f}) - caution advised"
+        elif rsi <= 5:
+            rsi_interpretation = f"RSI is extremely oversold ({rsi:.1f}) - strong bullish signal, potential bounce likely"
+        elif rsi < 30:
+            rsi_interpretation = f"RSI indicates oversold conditions ({rsi:.1f}) - potential buying opportunity"
+        else:
+            rsi_interpretation = f"RSI is in neutral territory ({rsi:.1f})"
+        
         reasoning_parts = [
             f"Current price: ${market_data.close_price:.2f}",
             f"Daily change: {market_data.change_percent:.2f}%",
-            "RSI indicates overbought conditions" if rsi > 70 else 
-            "RSI indicates oversold conditions" if rsi < 30 else 
-            "RSI is in neutral territory",
+            rsi_interpretation,
             "MACD shows bullish momentum" if macd > 0 else "MACD shows bearish momentum",
             "Market sentiment is positive" if sentiment > 0.2 else 
             "Market sentiment is negative" if sentiment < -0.2 else 
